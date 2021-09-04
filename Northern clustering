@@ -1,0 +1,573 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jul 14 12:19:50 2021
+
+@author: lizoliphant
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Jul 10 19:05:32 2021
+
+@author: lizoliphant
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jun 21 12:35:40 2021
+
+@author: lizoliphant
+"""
+
+# Native libraries                                               
+import os
+import math
+# Essential Libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+# Preprocessing
+from sklearn.preprocessing import MinMaxScaler
+# Algorithms
+
+from minisom import MiniSom
+
+
+
+os.chdir(r'/Users/lizoliphant/Downloads/opusData/start')
+data = pd.read_csv("locations.csv") 
+print(data)
+
+import glob 
+from pathlib import Path
+os.chdir(r'/Users/lizoliphant/Downloads/opusData/test')
+all_files = glob.glob('/Users/lizoliphant/Downloads/opusData/test/*.info')
+header_list= ["Name","Type","Post","idk","coord","coords", "space"]
+df1 = pd.DataFrame(columns=header_list)
+li=[]
+number= 0
+for filename in all_files:
+    ##df = pd.read_csv(filename, sep=",", encoding="utf-8", names=header_list, header=None)
+    df = pd.read_csv(filename, sep=",", names= header_list, na_values=[""],encoding='cp1252')
+    df['ID']=(Path(filename).stem)
+    df1 = df1.append(df) 
+    
+print(df1)
+
+df1['Area']= df1.Post.astype(str).str[:2]
+
+print(df1)
+
+df6= pd.merge(df1, data, on='Area')
+
+print(df6)
+
+directory = '/Users/lizoliphant/Downloads/opusData/test/'
+
+header_list= ["Year","Month","Day","Blan4k","Bla1nk","Bla3nk", "Period", "Consumption", "Space"]
+
+mySeries = []
+namesofMySeries = []
+for filename in os.listdir(directory):
+    if filename.endswith(".csv"):
+        df = pd.read_csv(directory+filename, names=header_list)
+        df = df.drop(df.columns[[3, 4, 5, 8]], axis=1)
+        #df['Date']=pd.to_datetime(df[['Year1','Month1','Day1']])    
+        number=df['Consumption'].count()    
+        print(df)
+        df['Date']=pd.to_datetime(df[['Year','Month','Day']])
+        df['weekday']=df['Date'].dt.dayofweek
+        #sectioning out by a time
+        #Weekday
+        #df=df[(df.weekday<5)]
+        #Weekend
+        #df=df[(df.weekday==5) | (df.weekday==4)]
+        #Sunday
+        df=df[(df.weekday==6)]
+        
+        Average=df['Consumption'].mean()
+        df['Rate']=df['Consumption']/Average
+        df3= df[['Rate','Period']]
+        df4=df3.groupby('Period', as_index=False)['Rate'].mean()
+        df2=df.groupby('Period', as_index=False)['Rate'].mean()
+        df4['year']=2000+df4['Period']
+        df4['month']=1
+        df4['day']=1
+        df4['Time']=pd.to_datetime(df4[['year', 'month','day']])    
+        print(df)
+        df2 = df4[['Time','Rate']]
+        # While we are at it I just filtered the columns that we will be working on
+        df2.set_index("Time",inplace=True)
+        # ,set the date columns as index
+        df.sort_index(inplace=True)
+        # and lastly, ordered the data according to our date index
+        mySeries.append(df2)
+        namesofMySeries.append(filename[:-4])
+
+print(mySeries)
+print(namesofMySeries)
+
+
+fig, axs = plt.subplots(6,4,figsize=(25,25))
+fig.suptitle('Series')
+for i in range(6):
+    for j in range(4):
+        if i*4+j+1>len(mySeries): # pass the others that we can't fill
+            continue
+        axs[i, j].plot(mySeries[i*4+j].values)
+        axs[i, j].set_title(namesofMySeries[i*4+j])
+plt.show()
+
+series_lengths = {len(series) for series in mySeries}
+print(series_lengths)
+
+
+problems_index = []
+
+        
+max_len = max(series_lengths)
+longest_series = None
+for series in mySeries:
+    if len(series) == max_len:
+        longest_series = series
+
+
+def nan_counter(list_of_series):
+    nan_polluted_series_counter = 0
+    for series in list_of_series:
+        if series.isnull().sum().sum() > 0:
+            nan_polluted_series_counter+=1
+            print(series)
+    print(nan_polluted_series_counter)
+
+problems_index = []
+for series in mySeries:
+    if series.isnull().sum().sum() > 0:
+        problems_index.append(series)
+good=[]
+namesofMySeriesgood=[]
+length=len(mySeries)
+
+i=0
+for series in mySeries:
+    if series.isnull().sum().sum() == 0:
+        good.append(series)
+        namesofMySeriesgood.append(namesofMySeries[i])
+        i=i+1
+    else:
+        i=i+1
+              
+print(good)
+nan_counter(good)
+print(len(good))
+print(len(namesofMySeriesgood))
+
+
+print(problems_index)
+print(type(problems_index))
+#print(type(good))
+#l3 = [x for x in mySeries if x not in problems_index]
+#cleanedList = [series for list_of_series in mySeries if str(series) != 'NaN']
+
+list2= pd.DataFrame(df6[['ID','Locations']], columns=['ID', 'Locations'])
+
+north= list2.loc[list2["Locations"] == "North"]
+
+northlist=north['ID'].to_list()
+
+i=0
+namesofMySeriesnorth=[]
+
+
+#dividing up by north south 
+
+
+length=len(namesofMySeriesgood)
+
+Seriesnorth=[]
+
+for i in range (length):
+    if namesofMySeriesgood[i] in northlist:
+        namesofMySeriesnorth.append(namesofMySeriesgood[i])
+        Seriesnorth.append(good[i])
+
+nan_counter(Seriesnorth)
+
+blah=[]
+yas=[]
+namesofMySeriesgoodgood=[]
+b=0
+for i in range(len(Seriesnorth)):
+    try:
+        scaler = MinMaxScaler()
+        thom=MinMaxScaler().fit_transform(Seriesnorth[i])
+        yas.append(thom)
+        yas[b]= yas[b].reshape(len(yas[b]))
+        b+1
+        namesofMySeriesgoodgood.append(namesofMySeriesnorth[i])
+    except:
+       print(i)
+       blah.append(i)
+       
+for i in range(len(yas)):
+    scaler = MinMaxScaler()
+    yas[i] = yas[i].reshape((48))
+
+
+som_x = som_y = math.ceil(math.sqrt(math.sqrt(len(yas)/65)))
+# I didn't see its significance but to make the map square,
+# I calculated square root of map size which is 
+# the square root of the number of series
+# for the row and column counts of som
+
+som = MiniSom(som_x, som_y,len(yas[0]), sigma=0.3, learning_rate = 0.1)
+som.random_weights_init(yas)
+
+som.train(yas, 50000)
+
+# Little handy function to plot series
+x=["12 am","5 am","10 am", "3 pm", "8 pm"]
+l=[0, 0.5, 1, 1.5, 2, 2.5,3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15, 15.5, 16, 16.5, 17, 17.5, 18, 18.5, 19, 19.5, 20, 20.5, 21, 21.5, 22, 22.5, 23, 23.5]
+# Little handy function to plot series
+def plot_som_series_averaged_center(som_x, som_y, win_map):
+    fig, axs = plt.subplots(som_x,som_y,figsize=(25,25))
+    fig.suptitle('Northern Sunday Loadshapes', x=0.5, y=0.95, fontsize=70)
+    for x in range(som_x):
+        for y in range(som_y):
+            cluster = (x,y)
+            if cluster in win_map.keys():
+                for series in win_map[cluster]:
+                    series=series*100
+                    axs[cluster].plot(l, series,c="gray",alpha=0.5) 
+                axs[cluster].plot(l, np.average(np.vstack(win_map[cluster])*100,axis=0),c="red")
+            cluster_number = x*som_y+y+1
+            #axs[cluster].xticks(l,x)
+            #axs[cluster].yticks([0.5, 1], ['hi', 'dog'])
+            axs[cluster].set_title("Cluster "f"{cluster_number}", fontsize=30)
+            axs[cluster].set_xlabel('Hour', fontsize = 16)
+            axs[cluster].set_ylabel('Percentage of Peak Demand', fontsize = 16)
+    #plt.yticks([0.5, 1], ['hi', 'dog'])
+    plt.show()    
+win_map = som.win_map(yas)
+# Returns the mapping of the winner nodes and inputs
+
+plot_som_series_averaged_center(som_x, som_y, win_map)
+
+
+cluster_map = []
+for idx in range(len(yas)):
+    winner_node = som.winner(yas[idx])
+    cluster_map.append((namesofMySeriesgoodgood[idx],f"Cluster {winner_node[0]*som_y+winner_node[1]+1}"))
+
+clusternumber=pd.DataFrame(cluster_map,columns=["ID","Cluster"]).sort_values(by="Cluster")
+
+print(clusternumber)
+
+
+
+
+import glob 
+from pathlib import Path
+os.chdir(r'/Users/lizoliphant/Downloads/opusData/test')
+all_files = glob.glob('/Users/lizoliphant/Downloads/opusData/test/*.info')
+header_list= ["Name","Type","Post","idk","coord","coords", "space"]
+df1 = pd.DataFrame(columns=header_list)
+li=[]
+number= 0
+for filename in all_files:
+    ##df = pd.read_csv(filename, sep=",", encoding="utf-8", names=header_list, header=None)
+    df = pd.read_csv(filename, sep=",", names= header_list, na_values=[""],encoding='cp1252')
+    df['ID']=(Path(filename).stem)
+    df1 = df1.append(df) 
+    
+print(df1)
+
+df5= pd.merge(df1, clusternumber, on='ID')
+print(df5)
+
+
+df5= df5.sort_values("Cluster")
+print(df5)
+df5[['type','specic']] = df5.Type.str.split("- ",expand=True,)
+
+print(df5)
+
+
+df5[['cluster','clusternumber']] = df5.Cluster.str.split(" ",expand=True,)
+
+
+df5['clusternumber']= pd.to_numeric(df5['clusternumber'])
+print(df5)
+column=df5['clusternumber'].max()+1
+'''
+specific=df5.clusternumber.unique()
+length=int(len(specific))
+fig, axs = plt.subplots(4,4)
+fig.suptitle('Series')
+colors= ['coral', 'orange', 'gold', 'lightgreen', 'black', 'aqua', 'violet', 'navy', 'gold', 'bisque', 'chocolate', 'white', 'teal', 'lightgrey', 'red','plum', 'maroon']
+b=0 
+for a in range (4):
+    for j in range(4):
+        cluster1 = df5[df5['clusternumber']==specific[b]]
+        maybe= cluster1.groupby('type').count()
+        df =pd.DataFrame({'count': maybe['clusternumber']},index=maybe.index)
+        col_one_list = df['count'].tolist()
+        col_two_list = df.index.tolist()
+            #df.plot(kind='pie', y='count')
+        axs[a, j].pie(col_one_list, shadow=True, colors=colors)
+        axs[a, j].set_title(specific[b])
+        b=b+1
+plt.show()
+plt
+#fig, ax = plt.subplots(nrows=1, ncols=2)
+
+'''
+df5['specic'][df5.type == "Housing Association"] = "Housing"
+df5['specic'][df5.type == "Ind – Waste Management"] = "Manufacturing"
+df5['specic'][df5.type == "Brewery"] = "Takeaway"
+df5['specic'][df5.type == "Retail – Financial"] = "General"
+df5['specic'][df5.type == "Charitable and Voluntary Organisations"] = "Charitable and Voluntary Organisations"
+df5['specic'][df5.type == "Office and General Services"] = "Office"
+
+df5['type'] = df5['type'].replace({'None (Domestic)':'Housing Association'})
+df5['type'] = df5['type'].replace({'General-Landlord ':'Housing Association'})
+df5['type']=df5['type'].replace({'Wholesalers and Merchants': 'Wholesalers '})
+df5['type']=df5['type'].replace({'Charitable and Voluntary Organisations': 'Social '})
+df5['type']=df5['type'].replace({'Retail – Financial': 'Retail '})
+df5['type']=df5['type'].replace({'Brewery': 'Wholesalers '})
+df5['type']=df5['type'].replace({'Ind – Waste Management': 'Ind '})
+df5['type']=df5['type'].replace({'Office and General Services': 'Retail '})
+df5['type']=df5['type'].replace({'Wholesalers ': 'Retail '})
+df5=df5.replace(np.nan, 'Unknown', regex=True)
+
+b=0
+specific=df5.clusternumber.unique()
+length=int(len(specific))
+fig, axs = plt.subplots(3,3, figsize=(5,7))
+fig.suptitle('Sunday Clusters by Sector', fontsize=20)
+col_two_list=df5.type.unique()
+col_two_list=sorted(col_two_list)
+colors= ['coral', 'lightgreen', 'navy', 'paleturquoise','gold']
+for a in range (3):
+    for j in range(3):
+        cluster1 = df5[df5['clusternumber']==specific[b]]
+        d={'type':col_two_list,'Colors':colors}
+        df700= pd.DataFrame(d)
+        maybe= cluster1.groupby('type').count()
+        maybe.reset_index()
+        maybemaybe=pd.merge(maybe, df700, on='type')
+        colors3=maybemaybe.Colors.tolist()
+        df =pd.DataFrame({'count': maybe['clusternumber']},index=maybe.index)
+        col_one_list = df['count'].tolist()
+            #df.plot(kind='pie', y='count')
+        axs[a, j].pie(col_one_list, shadow=True, colors=colors3)
+        axs[a, j].set_title("Cluster "f"{specific[b]}", fontsize=12)
+        b=b+1
+yaz=maybe.index.tolist()
+#import matplotlib.patches as mpatches
+#red_patch = mpatches.Patch(color=colors, label=col_two_list)
+import matplotlib.patches as patches
+rect1 = patches.Rectangle((0,0),1,1,facecolor='coral')
+rect4 = patches.Rectangle((0,0),1,1,facecolor='lightgreen')
+rect5 = patches.Rectangle((0,0),1,1,facecolor='navy')
+rect6 = patches.Rectangle((0,0),1,1,facecolor='paleturquoise')
+rect7 = patches.Rectangle((0,0),1,1,facecolor='gold')
+fig.legend((rect1, rect4, rect5, rect6, rect7), ('Entertainment', 'Housing Association', 'Industry', 'Retail', 'Social'), bbox_to_anchor=(0.08, 0.0), loc=3)
+#fig.legend(colors, 
+#           labels  = col_two_list, bbox_to_anchor=(1, 0.4), loc=3)
+plt.show()
+
+#bbox_to_anchor=(1.05, 1.0)
+
+#Specific type of business
+#General and others
+df5['specic']=df5['specic'].replace({'Hair Dressers / Barbers': 'General'})
+df5['specic']=df5['specic'].replace({'Garages & Services': 'General'})
+df5['specic']=df5['specic'].replace({'Furnishings': 'General'})
+df5['specic']=df5['specic'].replace({'Clothing and Accessories': 'General'})
+df5['specic']=df5['specic'].replace({'Estate Agent & Valuers': 'General'})
+df5['specic']=df5['specic'].replace({'Hire Services': 'General'})
+df5['specic']=df5['specic'].replace({'Garden and Leisure': 'General'})
+df5['specic']=df5['specic'].replace({'Household Items': 'General'})
+df5['specic']=df5['specic'].replace({'Office Equipemnt': 'General'})
+df5['specic']=df5['specic'].replace({'Chemists and Opticians': 'General'})
+df5['specic']=df5['specic'].replace({'Financial': 'General'})
+df5['specic']=df5['specic'].replace({'Vehicle Sale/Hire': 'General'})
+df5['specic']=df5['specic'].replace({'Office Equipment': 'General'})
+df5['specic']=df5['specic'].replace({'Nurseries and Gardens': 'General'})
+df5['specic']=df5['specic'].replace({'Travel Agent': 'General'})
+df5['specic']=df5['specic'].replace({'Food and Drink': 'General'})
+df5['specic']=df5['specic'].replace({'Bakery and Confectionery': 'General'})
+df5['specic']=df5['specic'].replace({'Wholesalers': 'General'})
+df5['specic']=df5['specic'].replace({'Chemists and Opticians': 'General'})
+df5['specic']=df5['specic'].replace({'Fin': 'General'})
+df5['specic']=df5['specic'].replace({'Energy': 'General'})
+df5['specic']=df5['specic'].replace({'Brewery': 'Manufacturing'})
+df5['specic']=df5['specic'].replace({'Charitable and Voluntary Organisations': 'Govt & Council property'})
+
+
+
+
+b=0
+specific=df5.clusternumber.unique()
+length=int(len(specific))
+fig, axs = plt.subplots(3,3, figsize=(3,12))
+fig.suptitle('North Clusters by Businnesss Type', fontsize=18)
+col_two_list=df5.specic.unique()
+col_two_list=sorted(col_two_list)
+colors= ['navy', 'teal', 'violet', 'indigo', 'gold', 'lightblue','firebrick', 'paleturquoise', 'lime', 'palegreen', 'pink', 'cyan', 'silver', 'yellow', 'goldenrod', 'darkslateblue', 'lightsteelblue', 'darkorange', 'tan', 'red', 'aquamarine', 'crimson' ]
+for a in range (3):
+    for j in range(3):
+        cluster1 = df5[df5['clusternumber']==specific[b]]
+        d={'specic':col_two_list,'Colors':colors}
+        df700= pd.DataFrame(d)
+        maybe= cluster1.groupby('specic').count()
+        maybe.reset_index()
+        maybemaybe=pd.merge(maybe, df700, on='specic')
+        colors3=maybemaybe.Colors.tolist()
+        df =pd.DataFrame({'count': maybe['clusternumber']},index=maybe.index)
+        col_one_list = df['count'].tolist()
+            #df.plot(kind='pie', y='count')
+        axs[a, j].pie(col_one_list, shadow=True, colors=colors3)
+        axs[a, j].set_title("Cluster "f"{specific[b]}", fontsize=12)
+        b=b+1
+yaz=maybe.index.tolist()
+#import matplotlib.patches as mpatches
+#red_patch = mpatches.Patch(color=colors, label=col_two_list)
+import matplotlib.patches as patches
+rect1 = patches.Rectangle((0,0),1,1,facecolor='navy')
+rect2 = patches.Rectangle((0,0),1,1,facecolor='teal')
+rect3 = patches.Rectangle((0,0),1,1,facecolor='violet')
+rect4 = patches.Rectangle((0,0),1,1,facecolor='indigo')
+rect6 = patches.Rectangle((0,0),1,1,facecolor='gold')
+rect7 = patches.Rectangle((0,0),1,1,facecolor='lightblue')
+rect8 = patches.Rectangle((0,0),1,1,facecolor='firebrick')
+rect9 = patches.Rectangle((0,0),1,1,facecolor='paleturquoise')
+rect10 = patches.Rectangle((0,0),1,1,facecolor='lime')
+rect11 = patches.Rectangle((0,0),1,1,facecolor='palegreen')
+rect12 = patches.Rectangle((0,0),1,1,facecolor='pink')
+rect13 = patches.Rectangle((0,0),1,1,facecolor='cyan')
+rect14 = patches.Rectangle((0,0),1,1,facecolor='silver')
+rect15 = patches.Rectangle((0,0),1,1,facecolor='yellow')
+rect16 = patches.Rectangle((0,0),1,1,facecolor='goldenrod')
+rect17 = patches.Rectangle((0,0),1,1,facecolor='darkslateblue')
+rect18 = patches.Rectangle((0,0),1,1,facecolor='lightsteelblue')
+rect19 = patches.Rectangle((0,0),1,1,facecolor='darkorange')
+rect20 = patches.Rectangle((0,0),1,1,facecolor='tan')
+rect21 = patches.Rectangle((0,0),1,1,facecolor='red')
+rect22 = patches.Rectangle((0,0),1,1,facecolor='aquamarine')
+rect23 = patches.Rectangle((0,0),1,1,facecolor='crimson')
+
+
+fig.legend((rect1, rect2, rect3, rect4, rect6, rect7, rect8, rect9, rect10, rect11, rect12, rect13, rect14, rect15, rect16, rect17, rect18, rect19, rect20, rect21, rect22, rect23), ('Care Homes', 'Chemicals', 'Cinema', 'Clubs', 'Farming', 'General', 'Govt & Council', 'Health', 'Hotels', 'Housing', 'Manufacturing', 'Newsagent', 'Nurseries', 'Office', 'Pubs', 'Religious', 'Restaurants', 'School / College', 'Takeaway', 'Transportation', 'Unknown'), bbox_to_anchor=(1.5, 0.0), loc=3)
+#fig.legend(col_two_list, bbox_to_anchor=(1, 0.4), loc=3)
+
+#plt.legend((rect1, rect2, rect3, rect4, rect5), ('col_two_list[0]', 'col_two_list[1])', 'col_two_list[2]', 'col_two_list[3]', 'col_two_list[4]'))
+#fig.legend(col_two_list,
+plt.show()
+
+'''
+df5['Area']= df5.Post.astype(str).str[:2]
+print(df5)
+#unique=df5['type'].unique()
+unique1=df5['Area'].unique()
+
+print(unique1)
+print(type(unique1))
+df55 = pd.DataFrame(data=unique1)
+print(df55)
+
+maybe= df5.groupby('Area').count()
+df55maybe = pd.DataFrame(data=maybe)
+print(df55maybe)
+'''
+
+
+df5= pd.merge(df1, clusternumber, on='ID')
+print(df5)
+
+
+df5= df5.sort_values("Cluster")
+print(df5)
+df5[['type','specic']] = df5.Type.str.split("- ",expand=True,)
+
+print(df5)
+
+
+df5[['cluster','clusternumber']] = df5.Cluster.str.split(" ",expand=True,)
+
+
+df5['clusternumber']= pd.to_numeric(df5['clusternumber'])
+print(df5)
+column=df5['clusternumber'].max()+1
+df5=df5.replace(np.nan, 'Unknown', regex=True)
+b=0
+specific=df5.clusternumber.unique()
+length=int(len(specific))
+fig, axs = plt.subplots(3,3, figsize=(7,7))
+fig.suptitle('North Clusters by Specific Businnesss without Grouping', fontsize=18)
+col_two_list=df5.specic.unique()
+col_two_list=sorted(col_two_list)
+colors= ['coral', 'navy', 'teal', 'lightblue', 'violet', 'lime', 'papayawhip', 'gold', 'firebrick', 'indigo', 'olivedrab', 'cornflowerblue', 'palegreen','peru', 'paleturquoise', 'pink', 'cyan', 'silver', 'yellow', 'goldenrod', 'darkslateblue', 'lightsteelblue', 'lightyellow', 'darkorange', 'tan', 'aquamarine', 'springgreen', 'crimson', 'chocolate', 'orange','purple', 'red', 'black', 'white','blue' ]
+for a in range (3):
+    for j in range(3):
+        cluster1 = df5[df5['clusternumber']==specific[b]]
+        d={'specic':col_two_list,'Colors':colors}
+        df700= pd.DataFrame(d)
+        maybe= cluster1.groupby('specic').count()
+        maybe.reset_index()
+        maybemaybe=pd.merge(maybe, df700, on='specic')
+        colors3=maybemaybe.Colors.tolist()
+        df =pd.DataFrame({'count': maybe['clusternumber']},index=maybe.index)
+        col_one_list = df['count'].tolist()
+            #df.plot(kind='pie', y='count')
+        axs[a, j].pie(col_one_list, shadow=True, colors=colors3)
+        axs[a, j].set_title("Cluster "f"{specific[b]}", fontsize=12)
+        b=b+1
+        print(maybemaybe)
+yaz=maybe.index.tolist()
+#import matplotlib.patches as mpatches
+#red_patch = mpatches.Patch(color=colors, label=col_two_list)
+import matplotlib.patches as patches
+rect1 = patches.Rectangle((0,0),1,1,facecolor='coral')
+rect2 = patches.Rectangle((0,0),1,1,facecolor='navy')
+rect3 = patches.Rectangle((0,0),1,1,facecolor='teal')
+rect4 = patches.Rectangle((0,0),1,1,facecolor='lightblue')
+rect5 = patches.Rectangle((0,0),1,1,facecolor='violet')
+rect6 = patches.Rectangle((0,0),1,1,facecolor='lime')
+rect7 = patches.Rectangle((0,0),1,1,facecolor='papayawhip')
+rect8 = patches.Rectangle((0,0),1,1,facecolor='gold')
+rect9 = patches.Rectangle((0,0),1,1,facecolor='cornflowerblue')
+rect10 = patches.Rectangle((0,0),1,1,facecolor='indigo')
+rect11 = patches.Rectangle((0,0),1,1,facecolor='olivedrab')
+rect12 = patches.Rectangle((0,0),1,1,facecolor='firebrick')
+rect13 = patches.Rectangle((0,0),1,1,facecolor='palegreen')
+rect14 = patches.Rectangle((0,0),1,1,facecolor='peru')
+rect15 = patches.Rectangle((0,0),1,1,facecolor='paleturquoise')
+rect16 = patches.Rectangle((0,0),1,1,facecolor='pink')
+rect17 = patches.Rectangle((0,0),1,1,facecolor='cyan')
+rect18 = patches.Rectangle((0,0),1,1,facecolor='silver')
+rect19 = patches.Rectangle((0,0),1,1,facecolor='yellow')
+rect20 = patches.Rectangle((0,0),1,1,facecolor='goldenrod')
+rect21 = patches.Rectangle((0,0),1,1,facecolor='darkslateblue')
+rect22 = patches.Rectangle((0,0),1,1,facecolor='lightsteelblue')
+rect23 = patches.Rectangle((0,0),1,1,facecolor='lightyellow')
+rect24 = patches.Rectangle((0,0),1,1,facecolor='darkorange')
+rect25 = patches.Rectangle((0,0),1,1,facecolor='tan')
+rect26 = patches.Rectangle((0,0),1,1,facecolor='aquamarine')
+rect27 = patches.Rectangle((0,0),1,1,facecolor='springgreen')
+rect28 = patches.Rectangle((0,0),1,1,facecolor='crimson')
+rect29 = patches.Rectangle((0,0),1,1,facecolor='chocolate')
+rect30 = patches.Rectangle((0,0),1,1,facecolor='orange')
+rect31 = patches.Rectangle((0,0),1,1,facecolor='purple')
+rect32 = patches.Rectangle((0,0),1,1,facecolor='red')
+rect33 = patches.Rectangle((0,0),1,1,facecolor='black')
+rect34 = patches.Rectangle((0,0),1,1,facecolor='white')
+rect35 = patches.Rectangle((0,0),1,1,facecolor='blue')
+
+
+fig.legend((rect1, rect2, rect3, rect4, rect5, rect6, rect7, rect8, rect9, rect10, rect11, rect12, rect13, rect14, rect15, rect16, rect17, rect18, rect19, rect20, rect21, rect22, rect23, rect24, rect25, rect26, rect27, rect28, rect29, rect30, rect31, rect32, rect33, rect34, rect35), ('Bakery and Confectionery', 'Care Homes', 'Chemicals & Plastics', 'Chemists and Opticians',  'Cinema or Leisure', 'Clothing and Accessories', 'Clubs', 'Energy', 'Estate Agent & Valuers', 'Farming', 'Food and Drink', 'Furnishings', 'Garages & Services', 'Garden and Leisure', 'General', 'Govt & Council property', 'Hair Dressers / Barbers', 'Health', 'Hire Services', 'Hotels', 'Household Items', 'Manufacturing', 'Newsagent', 'Nurseries', 'Nurseries and Gardens', 'Office Equipment', 'Pubs', 'Religious Property', 'Restaurants', 'School / College', 'Takeaway', 'Transportation','Travel Agent', 'Unknown', 'Vehicle Sale/Hire'), bbox_to_anchor=(0.0, 0.0), loc=3)
+#fig.legend(col_two_list, bbox_to_anchor=(1, 0.4), loc=3)
